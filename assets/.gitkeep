@@ -1,0 +1,86 @@
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "camera.h"
+#include "renderer.h"
+
+static void glfw_error_callback(int error, const char *description) {
+    (void)error;
+    fprintf(stderr, "GLFW error %d: %s\n", error, description);
+}
+
+int main(void) {
+    glfwSetErrorCallback(glfw_error_callback);
+
+    if (!glfwInit()) {
+        fprintf(stderr, "Failed to initialize GLFW\n");
+        return 1;
+    }
+
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow *window = glfwCreateWindow(1600, 900, "The Terminator of Earth", NULL, NULL);
+    if (!window) {
+        fprintf(stderr, "Failed to create GLFW window\n");
+        glfwTerminate();
+        return 1;
+    }
+
+    glfwMakeContextCurrent(window);
+    glewExperimental = GL_TRUE;
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "Failed to initialize GLEW\n");
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
+
+    glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+    Camera camera;
+    camera_init(&camera, glm::vec3(0.0f, 1.8f, 5.0f));
+    camera_set_projection(&camera, 75.0f, 1600.0f / 900.0f, 0.1f, 1000.0f);
+
+    Renderer renderer = {0};
+    if (!renderer_init(&renderer, "assets/sky_day.png")) {
+        fprintf(stderr, "Failed to initialize renderer\n");
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return 1;
+    }
+
+    double last_time = glfwGetTime();
+
+    while (!glfwWindowShouldClose(window)) {
+        double current_time = glfwGetTime();
+        float delta_time = (float)(current_time - last_time);
+        last_time = current_time;
+
+        camera_handle_input(&camera, window, delta_time);
+
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        renderer_draw(&renderer, camera.view, camera.projection);
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+        }
+    }
+
+    renderer_destroy(&renderer);
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    return 0;
+}
